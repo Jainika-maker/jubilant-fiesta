@@ -1,62 +1,154 @@
-import streamlit as st
-import pickle
+import numpy as np
 import pandas as pd
-import requests
+import plotly.graph_objs as go
+import dash
+import dash_core_components as dcc
+import dash_html_components as html
+from dash.dependencies import Input, Output
+import plotly.express as px
+external_stylesheet= [
+ {
+ 'href': 'https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css',
+ 'rel': 'stylesheet',
+ 'integrity': 'sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh',
+ 'crossorigin': 'anonymous'
+ }
+]
+patients =pd.read_csv('state_wise_daily data file IHHPET.csv')
+total = patients.shape[0]
+active = patients[patients['Status'] == 'Confirmed'].shape[0]
+recovered = patients[patients['Status'] == 'Recovered'].shape[0]
+deaths= patients[patients['Status'] == 'Deceased'].shape[0]
 
-def fetch_poster(movie_id):
-    response =( requests.get('https://api.themoviedb.org/3/movie/{}?api_key=47fafaa3ac5b021191fd3b90e02e5dd8'.format(movie_id)))
-    data = response.json()
-    return "https://image.tmdb.org/t/p/w500/" + data['poster_path']
+options=[
+ {'label':'All', 'value':'All'},
+ {'label':'Hospitalized', 'value':'Hospitalized'},
+ {'label':'Recovered','value':'Recovered'},
+ {'label':'Deceased','value':'Deceased'}
+]
 
+options1=[
+ {'label':'All', 'value':'All'},
+ {'label':'Mask', 'value':'Mask'},
+ {'label':'Sanitizer','value':'Sanitizer'},
+ {'label':'Oxygen','value':'Oxygen'}
+]
+options2=[
+ {'label':'Red Zone', 'value':'Red Zone'},
+ {'label':'Blue Zone','value':'Blue Zone'},
+ {'label':'Green Zone','value':'Green Zone'},
+ {'label':'Orange Zone','value':'Orange Zone'}
+]
 
-def recommend(movie):
-  movie_index = movies[movies['title'] == movie].index[0]
-  distances = similarity[movie_index]
-  movies_list = sorted(list(enumerate(distances)), reverse=True, key=lambda x: x[1])[1:6]
+app = dash.Dash(__name__,external_stylesheets=external_stylesheet)
 
-  recommended_movies = []
-  recommended_movies_posters = []
+app.layout= html.Div([
 
-  for i in movies_list:
-      movie_id = movies.iloc[i[0]].movie_id
-      recommended_movies.append(movies.iloc[i[0]].title)
+ html.H1("cororna virus pandemic",style={'color':'#fff', 'text-align':'center'}),
+     html.Div([
+         html.Div([
+           html.Div([
+              html.Div([
+                html.H3("Total Cases", className='text-light'),
+                html.H4(total, className='text-light')
+        ], className= 'card-body')
+    ],className='card bg-danger')
+],className='col-md-3'),
 
-      recommended_movies_posters.append(fetch_poster(movie_id))
-  return recommended_movies,recommended_movies_posters
+ html.Div([
+      html.Div([
+         html.Div([
+           html.H3("Active Cases", className='text-light'),
+           html.H4(active, className='text-light')
+         ], className='card-body')
+     ], className='card bg-info')
+ ], className='col-md-3'),
 
+ html.Div([
+     html.Div([
+        html.Div([
+           html.H3("Recovered Cases", className='text-light'),
+           html.H4(recovered, className='text-light')
+        ], className='card-body')
+     ], className='card bg-warning')
+ ],className='col-md-3'),
 
-movie_dict= pickle.load(open('movie_dict.pkl','rb'))
-movies= pd.DataFrame(movie_dict)
+ html.Div([
+    html.Div([
+        html.Div([
+            html.H3("Total Deaths", className='text-light'),
+            html.H4(deaths, className='text-light')
+       ], className='card-body')
+    ], className='card bg-success')
+   ],className='col-md-3')
+ ],className='row'),
 
+ html.Div([
+       html.Div([
+         html.Div([
+           html.Div([
+              dcc.Dropdown(id='plot-graph', options=options1, value='All'),
+              dcc.Graph(id='graph')
+        ],className='card-body')
+      ],className='card bg-info')
+],className='col-md-6'),
 
-st.title("Movie Recommendation System")
-similarity = pickle.load(open('similarity.pkl','rb'))
+ html.Div([
+       html.Div([
+          html.Div([
+             dcc.Dropdown(id='my_dropdown', options=options2, value='Status',
+             style={"width": "100%"}),
+             dcc.Graph(id='the_graph')
+         ],className='card-body')
+      ],className='card bg-success')
+   ],className='col-md-6')
+ ],className= 'row'),
 
+ html.Div([
+      html.Div([
+          html.Div([
+             html.Div([
+                 dcc.Dropdown(id='picker',options=options, value='All'),
+                 dcc.Graph(id='bar')
+            ], className='card-body')
+          ], className='card bg-warning')
+      ], className='col-md-12')
+ ],className='ROW')
+],className= 'container')
 
-option = st.selectbox(
-'Enter movie name?',
-  movies['title'].values)
+@app.callback(Output('bar','figure'),[Input('picker','value')])
+def update_graph(type):
+ if type=='All':
+      return {'data':[go.Bar(x=patients['State'], y=patients['Total'])],
+      'layout':go.Layout(title= "State Total Count", plot_bgcolor= 'orange')}
+ if type == "Hospitalized":
+      return {'data':[go.Bar(x=patients['State'], y=patients['Hospitalized'])],
+      'layout':go.Layout(title= "State Total Count", plot_bgcolor='orange')}
+ if type == "Recovered":
+      return {'data':[go.Bar(x=patients['State'], y=patients['Recovered'])],
+      'layout':go.Layout(title= "State Total Count", plot_bgcolor='orange')}
+ if type == "Deceased":
+       return {'data':[go.Bar(x=patients['State'], y=patients['Deceased'])],
+      'layout':go.Layout(title= "State Total Count",plot_bgcolor='orange')}
 
-if st.button('Recommend'):
-  names,posters= recommend(option)
+ @app.callback(Output('graph','figure'),[Input('plot-graph','value')])
+ def generate_graph(type):
 
-  col1, col2, col3, col4, col5 = st.columns(5)
-  with col1:
-    st.text(names[0])
-    st.image(posters[0])
-
-  with col2:
-    st.text(names[1])
-    st.image(posters[1])
-
-  with col3:
-    st.text(names[2])
-    st.image(posters[2])
-
-  with col4:
-     st.text(names[3])
-     st.image(posters[3])
-
-  with col5:
-     st.text(names[4])
-     st.image(posters[4])
+   if type=='All':
+      return {'data':[go.Line(x=patients['Status'], y=patients['Total'])],
+     'layout':go.Layout(title= "Commodities Total Count",plot_bgcolor='pink')}
+   if type=='Mask':
+      return {'data':[go.Line(x=patients['Status'], y=patients['Mask'])],
+      'layout':go.Layout(title= "Commodities Total Count", plot_bgcolor='pink')}
+   if type=='Sanitizer':
+      return {'data':[go.Line(x=patients['Status'], y=patients['Sanitizer'])],
+     'layout':go.Layout(title= "Commodities Total Count",plot_bgcolor='pink')}
+   if type=='Oxygen':
+     return {'data':[go.Line(x=patients['Status'], y=patients['Oxygen'])],
+     'layout':go.Layout(title= "Commodities Total Count",plot_bgcolor='pink')}
+@app.callback(Output('the_graph','figure'),[Input('my_dropdown','value')])
+def generate_graph(my_dropdown):
+ piechart = px.pie(data_frame=patients,names= my_dropdown, hole=0.3)
+ return (piechart)
+if __name__ == '__main__':
+ app.run_server(debug = True)
